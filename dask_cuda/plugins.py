@@ -3,7 +3,10 @@ import os
 
 from distributed import WorkerPlugin
 
-from .utils import get_rmm_log_file_name, parse_device_memory_limit
+from .utils import (get_rmm_log_file_name,
+                    parse_device_memory_limit,
+                    enable_rmm_allocator_for_lib,
+                    SUPPORTED_RMM_ALLOCATOR_TARGET_LIBS)
 
 
 class CPUAffinity(WorkerPlugin):
@@ -39,6 +42,7 @@ class RMMSetup(WorkerPlugin):
         release_threshold,
         log_directory,
         track_allocations,
+        rmm_allocator_target_libs,
     ):
         if initial_pool_size is None and maximum_pool_size is not None:
             raise ValueError(
@@ -52,6 +56,16 @@ class RMMSetup(WorkerPlugin):
                 )
         if async_alloc is False and release_threshold is not None:
             raise ValueError("`rmm_release_threshold` requires `rmm_async`.")
+        
+        if rmm_allocator_target_libs:
+            rmm_allocator_target_libs = [lib.strip() for lib in rmm_allocator_target_libs.split(',')]
+            unsupported_libs = set(rmm_allocator_target_libs) - set(SUPPORTED_RMM_ALLOCATOR_TARGET_LIBS)
+            if unsupported_libs:
+                raise ValueError(
+                    f"The following libraries do not support RMM allocator: {', '.join(unsupported_libs)}. "
+                    f"Supported options are: {', '.join(SUPPORTED_RMM_ALLOCATOR_TARGET_LIBS)}"
+                )
+        
 
         self.initial_pool_size = initial_pool_size
         self.maximum_pool_size = maximum_pool_size
@@ -61,6 +75,7 @@ class RMMSetup(WorkerPlugin):
         self.logging = log_directory is not None
         self.log_directory = log_directory
         self.rmm_track_allocations = track_allocations
+        self.rmm_allocator_target_libs = rmm_allocator_target_libs
 
     def setup(self, worker=None):
         if self.initial_pool_size is not None:
@@ -122,6 +137,10 @@ class RMMSetup(WorkerPlugin):
 
             mr = rmm.mr.get_current_device_resource()
             rmm.mr.set_current_device_resource(rmm.mr.TrackingResourceAdaptor(mr))
+
+        if self.rmm_allocator_target_libs is not None:
+            for lib in self.rmm_allocator_target_libs:
+                enable_rmm_allocator_for_lib(lib=lib)
 
 
 class PreImport(WorkerPlugin):

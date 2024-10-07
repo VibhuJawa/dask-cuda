@@ -143,6 +143,9 @@ class LocalCUDACluster(LocalCluster):
             The asynchronous allocator requires CUDA Toolkit 11.2 or newer. It is also
             incompatible with RMM pools and managed memory. Trying to enable both will
             result in an exception.
+    rmm-allocator-target-libs: str or None, default None
+        Set RMM as the allocator for external libraries. Provide a comma-separated
+        list of libraries to set, e.g., "torch,cupy". Supported options are: torch, cupy, numba
     rmm_release_threshold: int, str or None, default None
         When ``rmm.async is True`` and the pool size grows beyond this value, unused
         memory held by the pool will be released at the next synchronization point.
@@ -231,6 +234,7 @@ class LocalCUDACluster(LocalCluster):
         rmm_maximum_pool_size=None,
         rmm_managed_memory=False,
         rmm_async=False,
+        rmm_allocator_target_libs=None,
         rmm_release_threshold=None,
         rmm_log_directory=None,
         rmm_track_allocations=False,
@@ -277,6 +281,7 @@ class LocalCUDACluster(LocalCluster):
         self.rmm_managed_memory = rmm_managed_memory
         self.rmm_async = rmm_async
         self.rmm_release_threshold = rmm_release_threshold
+        self.rmm_allocator_target_libs = rmm_allocator_target_libs
         if rmm_pool_size is not None or rmm_managed_memory or rmm_async:
             try:
                 import rmm  # noqa F401
@@ -430,6 +435,7 @@ class LocalCUDACluster(LocalCluster):
                         release_threshold=self.rmm_release_threshold,
                         log_directory=self.rmm_log_directory,
                         track_allocations=self.rmm_track_allocations,
+                        rmm_allocator_target_libs=self.rmm_allocator_target_libs,
                     ),
                     PreImport(self.pre_import),
                     CUDFSetup(self.enable_cudf_spill, self.cudf_spill_stats),

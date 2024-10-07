@@ -165,6 +165,13 @@ def cuda():
         result in failure.""",
 )
 @click.option(
+    "--rmm-allocator-target-libs",
+    default=None,
+    show_default=True,
+    help="""Set RMM as the allocator for external libraries. Provide a comma-separated
+    list of libraries to set, e.g., "torch,cupy". Supported options are: torch, cupy, numba"""
+)
+@click.option(
     "--rmm-release-threshold",
     default=None,
     help="""When ``rmm.async`` is ``True`` and the pool size grows beyond this value, unused
@@ -350,6 +357,7 @@ def worker(
     rmm_maximum_pool_size,
     rmm_managed_memory,
     rmm_async,
+    rmm_allocator_target_libs,
     rmm_release_threshold,
     rmm_log_directory,
     rmm_track_allocations,
@@ -424,6 +432,7 @@ def worker(
             rmm_maximum_pool_size,
             rmm_managed_memory,
             rmm_async,
+            rmm_allocator_target_libs,
             rmm_release_threshold,
             rmm_log_directory,
             rmm_track_allocations,

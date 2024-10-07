@@ -30,6 +30,8 @@ except ImportError:
     def nvtx_annotate(message=None, color="blue", domain=None):
         yield
 
+SUPPORTED_RMM_ALLOCATOR_TARGET_LIBS = ["cupy", "torch", "numba"]
+
 
 def unpack_bitmask(x, mask_bits=64):
     """Unpack a list of integers containing bitmasks.
@@ -764,3 +766,48 @@ def get_rmm_device_memory_usage() -> Optional[int]:
         if isinstance(mr, rmm.mr.StatisticsResourceAdaptor):
             return mr.allocation_counts["current_bytes"]
     return None
+
+
+def enable_rmm_allocator_for_lib(lib: str) ->None:
+    """Enable RMM allocator for the specified library.
+
+    This function sets up the RMM allocator for the given library,
+    allowing it to use RMM for GPU memory allocations.
+
+    Parameters
+    ----------
+    lib : str
+        The name of the library to enable RMM allocator for.
+        Supported options are: "torch", "cupy", "numba".
+
+    Raises
+    ------
+    ValueError
+        If the specified library is not supported.
+    ImportError
+        If the specified library is not installed.
+
+    Notes
+    -----
+    This function should be called after RMM has been initialized.
+    The behavior may vary depending on the specific library and its version.
+    """
+
+    if lib not in SUPPORTED_RMM_ALLOCATOR_TARGET_LIBS:
+        raise ValueError(f"Unsupported library '{lib}'. Supported options are: {', '.join(SUPPORTED_RMM_ALLOCATOR_TARGET_LIBS)}")
+    
+    if lib == "torch":
+        from rmm.allocators.torch import rmm_torch_allocator
+        import torch
+        torch.cuda.memory.change_current_allocator(rmm_torch_allocator)
+    
+    if lib == "cupy":
+        from rmm.allocators.cupy import rmm_cupy_allocator
+        import cupy
+        cupy.cuda.set_allocator(rmm_cupy_allocator)
+    
+    if lib == "numba":
+        from numba import cuda
+        from rmm.allocators.numba import RMMNumbaManager
+        cuda.set_memory_manager(RMMNumbaManager)
+    
